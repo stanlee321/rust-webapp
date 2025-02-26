@@ -425,11 +425,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-web-app"
+name = "rust-httpx-app"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "once_cell",
  "serde",
+ "serde_json",
  "tokio",
  "tower-http",
 ]

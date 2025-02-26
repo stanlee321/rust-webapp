@@ -5,17 +5,21 @@ edition = "2021"
 
 [dependencies]
 yew = { version = "0.20", features = ["csr"] }
-serde = { version = "1.0", features = ["derive"] }
+gloo = "0.8"
+gloo-net = "0.2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+indexmap = "1.9.3"
 web-sys = { version = "0.3", features = [
-    "HtmlInputElement",
-    "Request",
-    "RequestInit",
-    "RequestMode",
-    "Response",
+    "HtmlInputElement", 
+    "HtmlSelectElement",
+    "Document",
     "Window",
-    "Headers",
-] }
-gloo-net = "0.2"
-serde_json = "1.0" 
+    "Element"
+]}
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+yew-router = "0.17"
+log = "0.4"
+wasm-logger = "0.2" 

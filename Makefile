@@ -4,7 +4,12 @@
 all: run
 
 # Main run command
-run: check-trunk check-wasm frontend backend
+run: check-trunk check-wasm
+	@echo "Starting the application (backend and frontend)..."
+	@mkdir -p scripts
+	@[ -f scripts/run.sh ] || echo '#!/bin/bash\ntrap "kill 0" EXIT\n\n# Start the backend first\ncargo run &\nbackend_pid=$$!\n\n# Give the backend time to start up\necho "Waiting for backend to start..."\nsleep 3\n\n# Then start the frontend with proxy configuration\ncd frontend && trunk serve --proxy-backend=http://127.0.0.1:3000/api --address 127.0.0.1 --port 9090 &\nfrontend_pid=$$!\n\n# Keep the script running until both processes exit\nwait $$backend_pid $$frontend_pid' > scripts/run.sh
+	@chmod +x scripts/run.sh
+	@./scripts/run.sh
 
 # Check if trunk is installed
 check-trunk:
@@ -61,7 +66,7 @@ dev:
 # Show help
 help:
 	@echo "Available commands:"
-	@echo "  make run         - Build frontend and run the server (default)"
+	@echo "  make run         - Start both the backend and frontend servers simultaneously (default)"
 	@echo "  make build       - Build the project without running"
 	@echo "  make frontend    - Build only the Yew frontend"
 	@echo "  make backend     - Run only the backend server"
