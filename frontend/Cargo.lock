@@ -155,6 +155,7 @@ dependencies = [
  "gloo",
  "gloo-net 0.2.6",
  "indexmap",
+ "js-sys",
  "log",
  "serde",
  "serde_json",

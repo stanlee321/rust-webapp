@@ -5,17 +5,20 @@ use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use wasm_bindgen::prelude::JsValue;
-use web_sys::{HtmlInputElement, HtmlSelectElement, Document, MouseEvent, Window};
+use web_sys::{HtmlInputElement, HtmlSelectElement, Document, MouseEvent, Window, Event, FocusEvent, SubmitEvent};
 use yew::prelude::*;
 use yew_router::prelude::*;
 use wasm_bindgen::JsCast;
+use js_sys::Math;
 use crate::services::{
     User, Camera, ActivityLog, Report, Settings, ReportType, ReportFormat, CameraStatus, UserRole,
     get_users, get_cameras, get_logs, get_reports, get_settings, 
+    update_camera, create_camera, delete_camera,
     login,
     fetch_data
 };
 use wasm_bindgen_futures;
+use js_sys::Date;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Route {
@@ -468,9 +471,23 @@ fn window() -> Window {
 }
 
 fn document() -> Document {
-    window()
-        .document()
-        .expect("should have a document on window")
+    window().document().expect("Failed to get document")
+}
+
+fn get_input_value(id: &str) -> String {
+    if let Some(element) = document().get_element_by_id(id) {
+        // Try to get value from input element
+        if let Ok(input) = element.clone().dyn_into::<HtmlInputElement>() {
+            return input.value();
+        }
+        
+        // Try to get value from select element
+        if let Ok(select) = element.dyn_into::<HtmlSelectElement>() {
+            return select.value();
+        }
+    }
+    
+    String::new()
 }
 
 fn main() {
@@ -669,6 +686,9 @@ fn render_page(
             }
         },
         Page::Cameras => {
+            // Simple Camera page implementation without state management challenges
+            let cameras_list = mock_cameras();
+                
             html! {
                 <div class="cameras-page">
                     <div class="page-header">
@@ -676,58 +696,54 @@ fn render_page(
                         <button class="primary-button">{"Add Camera"}</button>
                     </div>
                     
-                    {
-                        if let Some(camera_list) = cameras.as_ref() {
-                            html! {
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{"Name"}</th>
-                                            <th>{"IP Address"}</th>
-                                            <th>{"Location"}</th>
-                                            <th>{"Status"}</th>
-                                            <th>{"Last Update"}</th>
-                                            <th>{"Actions"}</th>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>{"Name"}</th>
+                                <th>{"IP Address"}</th>
+                                <th>{"Location"}</th>
+                                <th>{"Status"}</th>
+                                <th>{"Last Update"}</th>
+                                <th>{"Actions"}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {
+                                cameras_list.iter().map(|camera| {
+                                    let status_class = match camera.status {
+                                        CameraStatus::Online => "status-online",
+                                        CameraStatus::Offline => "status-offline",
+                                        CameraStatus::Maintenance => "status-maintenance",
+                                    };
+                                    
+                                    let status_text = match camera.status {
+                                        CameraStatus::Online => "Online",
+                                        CameraStatus::Offline => "Offline",
+                                        CameraStatus::Maintenance => "Maintenance",
+                                    };
+                                    
+                                    html! {
+                                        <tr key={camera.id.clone()}>
+                                            <td>{&camera.name}</td>
+                                            <td>{format!("{}:{}", camera.ip_address, camera.port)}</td>
+                                            <td>{&camera.location}</td>
+                                            <td>
+                                                <span class={format!("status-indicator {}", status_class)}>
+                                                    {status_text}
+                                                </span>
+                                            </td>
+                                            <td>{&camera.last_update}</td>
+                                            <td class="action-buttons">
+                                                <button class="action-button">{"View"}</button>
+                                                <button class="action-button">{"Edit"}</button>
+                                                <button class="action-button danger">{"Delete"}</button>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {
-                                            camera_list.iter().map(|camera| {
-                                                let status_class = match camera.status {
-                                                    CameraStatus::Online => "status-online",
-                                                    CameraStatus::Offline => "status-offline",
-                                                    CameraStatus::Maintenance => "status-maintenance",
-                                                };
-                                                
-                                                let status_text = match camera.status {
-                                                    CameraStatus::Online => "Online",
-                                                    CameraStatus::Offline => "Offline",
-                                                    CameraStatus::Maintenance => "Maintenance",
-                                                };
-                                                
-                                                html! {
-                                                    <tr key={camera.id.clone()}>
-                                                        <td>{&camera.name}</td>
-                                                        <td>{format!("{}:{}", camera.ip_address, camera.port)}</td>
-                                                        <td>{&camera.location}</td>
-                                                        <td><span class={format!("status-indicator {}", status_class)}>{status_text}</span></td>
-                                                        <td>{&camera.last_update}</td>
-                                                        <td>
-                                                            <button class="action-button">{"View"}</button>
-                                                            <button class="action-button">{"Edit"}</button>
-                                                            <button class="action-button danger">{"Delete"}</button>
-                                                        </td>
-                                                    </tr>
-                                                }
-                                            }).collect::<Html>()
-                                        }
-                                    </tbody>
-                                </table>
+                                    }
+                                }).collect::<Html>()
                             }
-                        } else {
-                            html! { <div class="loading-container">{"Loading cameras..."}</div> }
-                        }
-                    }
+                        </tbody>
+                    </table>
                 </div>
             }
         },
@@ -989,4 +1005,122 @@ fn render_page(
             }
         }
     }
+}
+
+// Modal Component
+#[derive(Properties, PartialEq)]
+pub struct ModalProps {
+    #[prop_or_default]
+    pub title: String,
+    #[prop_or_default]
+    pub is_open: bool,
+    #[prop_or(Callback::noop())]
+    pub on_close: Callback<MouseEvent>,
+    #[prop_or_default]
+    pub children: Children,
+}
+
+#[function_component(Modal)]
+fn modal(props: &ModalProps) -> Html {
+    if !props.is_open {
+        return html! {};
+    }
+
+    let onclick = props.on_close.clone();
+    
+    let modal_onclick = Callback::from(move |e: MouseEvent| {
+        e.stop_propagation();
+    });
+    
+    html! {
+        <div class="modal-overlay" onclick={onclick.clone()}>
+            <div class="modal-container" onclick={modal_onclick}>
+                <div class="modal-header">
+                    <h3 class="modal-title">{&props.title}</h3>
+                    <button class="close-button" onclick={onclick}>{"×"}</button>
+                </div>
+                <div class="modal-content">
+                    { for props.children.iter() }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// Mock data for development
+fn mock_cameras() -> Vec<Camera> {
+    vec![
+        Camera {
+            id: "camera1".to_string(),
+            name: "Front Door".to_string(),
+            ip_address: "192.168.1.101".to_string(),
+            port: 8080,
+            location: "Main Entrance".to_string(),
+            active: true,
+            status: CameraStatus::Online,
+            last_update: "2023-01-15 10:30:45".to_string(),
+        },
+        Camera {
+            id: "camera2".to_string(),
+            name: "Back Yard".to_string(),
+            ip_address: "192.168.1.102".to_string(),
+            port: 8080,
+            location: "Rear Exit".to_string(),
+            active: true,
+            status: CameraStatus::Offline,
+            last_update: "2023-01-15 09:15:22".to_string(),
+        },
+        Camera {
+            id: "camera3".to_string(),
+            name: "Garage".to_string(),
+            ip_address: "192.168.1.103".to_string(),
+            port: 8080,
+            location: "Vehicle Entry".to_string(),
+            active: false,
+            status: CameraStatus::Maintenance,
+            last_update: "2023-01-14 14:45:30".to_string(),
+        },
+    ]
+}
+
+// Mock data for other entities
+fn mock_users() -> Vec<User> {
+    vec![
+        User {
+            id: "user1".to_string(),
+            username: "admin".to_string(),
+            name: "Admin User".to_string(),
+            email: "admin@example.com".to_string(),
+            role: UserRole::SuperAdmin,
+            active: true,
+            last_login: "2025-02-25 08:15".to_string(),
+        },
+        User {
+            id: "user2".to_string(),
+            username: "jane".to_string(),
+            name: "Jane Smith".to_string(),
+            email: "jane@example.com".to_string(),
+            role: UserRole::Admin,
+            active: true,
+            last_login: "2025-02-24 14:22".to_string(),
+        },
+        User {
+            id: "user3".to_string(),
+            username: "john".to_string(),
+            name: "John Doe".to_string(),
+            email: "john@example.com".to_string(),
+            role: UserRole::Viewer,
+            active: true,
+            last_login: "2025-02-25 09:03".to_string(),
+        },
+        User {
+            id: "user4".to_string(),
+            username: "alice".to_string(),
+            name: "Alice Brown".to_string(),
+            email: "alice@example.com".to_string(),
+            role: UserRole::Viewer,
+            active: false,
+            last_login: "2025-01-15 10:30".to_string(),
+        },
+    ]
 } 

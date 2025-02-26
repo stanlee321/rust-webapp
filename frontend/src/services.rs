@@ -29,7 +29,7 @@ pub enum UserRole {
 }
 
 // Camera Models
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Camera {
     pub id: String,
     pub name: String,
@@ -277,6 +277,70 @@ pub async fn get_camera(id: &str) -> Result<Camera, String> {
                 }
             } else {
                 Err("Camera not found".to_string())
+            }
+        }
+        Err(err) => Err(format!("Request failed: {}", err)),
+    }
+}
+
+// Create a new camera
+pub async fn create_camera(camera: &Camera) -> Result<Camera, String> {
+    let response = Request::post("/api/cameras")
+        .json(camera)
+        .expect("Failed to serialize JSON")
+        .send()
+        .await;
+
+    match response {
+        Ok(response) => {
+            if response.status() == 201 {
+                match response.json::<Camera>().await {
+                    Ok(data) => Ok(data),
+                    Err(err) => Err(format!("Failed to parse response: {}", err)),
+                }
+            } else {
+                Err("Failed to create camera".to_string())
+            }
+        }
+        Err(err) => Err(format!("Request failed: {}", err)),
+    }
+}
+
+// Update an existing camera
+pub async fn update_camera(id: &str, camera: &Camera) -> Result<Camera, String> {
+    let response = Request::put(&format!("/api/cameras/{}", id))
+        .json(camera)
+        .expect("Failed to serialize JSON")
+        .send()
+        .await;
+
+    match response {
+        Ok(response) => {
+            if response.status() == 200 {
+                match response.json::<Camera>().await {
+                    Ok(data) => Ok(data),
+                    Err(err) => Err(format!("Failed to parse response: {}", err)),
+                }
+            } else {
+                Err("Failed to update camera".to_string())
+            }
+        }
+        Err(err) => Err(format!("Request failed: {}", err)),
+    }
+}
+
+// Delete a camera
+pub async fn delete_camera(id: &str) -> Result<(), String> {
+    let response = Request::delete(&format!("/api/cameras/{}", id))
+        .send()
+        .await;
+
+    match response {
+        Ok(response) => {
+            if response.status() == 204 {
+                Ok(())
+            } else {
+                Err("Failed to delete camera".to_string())
             }
         }
         Err(err) => Err(format!("Request failed: {}", err)),
