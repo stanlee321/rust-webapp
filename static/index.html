@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust HTTPX App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .api-section {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hello World from Rust HTTPX App!</h1>
+        
+        <div class="api-section">
+            <h2>Test API Endpoints</h2>
+            <button id="fetchHello">Fetch Hello</button>
+            <input type="text" id="nameInput" placeholder="Enter a name">
+            <button id="fetchHelloName">Fetch Hello with Name</button>
+            
+            <div id="result">
+                API response will appear here
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fetchHello').addEventListener('click', async () => {
+            const response = await fetch('/api/hello');
+            const data = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById('fetchHelloName').addEventListener('click', async () => {
+            const name = document.getElementById('nameInput').value || 'world';
+            const response = await fetch(`/api/hello/${name}`);
+            const data = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        });
+    </script>
+</body>
+</html>
